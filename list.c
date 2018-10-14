@@ -694,57 +694,66 @@ data_t * list_remove(list_t *list_ptr, list_node_t * idx_ptr)
     assert(NULL != list_ptr);
     if (0 == list_ptr->current_list_size)
   	assert(idx_ptr == NULL);
+    data_t *su_data;
 
     // MY CODE
-    if (idx_ptr==NULL || list_ptr->current_list_size == 0)
+    if (list_ptr->current_list_size == 0)
         return NULL;
 
-    data_t * su_data = idx_ptr->data_ptr;
-    // check to see if there is only one node
-      if(list_ptr->current_list_size == 1)
-      {
-        idx_ptr->prev = NULL;
-        idx_ptr->next = NULL;
-        list_ptr->head = NULL;
-        list_ptr->tail = NULL;
-        free(idx_ptr);
-      }
-    // check if this is the head or tail
-      else if (list_ptr->head == idx_ptr)
-      {
-        list_node_t * idxNext = idx_ptr->next;
-        idx_ptr->prev = NULL;
-        idx_ptr->next = NULL;
-        free(idx_ptr);
-        list_ptr->head = idxNext;
-        idxNext->prev = NULL;
-      }
-      else if(list_ptr->tail == idx_ptr)
-      {
-        list_node_t * idxPrev = idx_ptr->prev;
-        idx_ptr->prev = NULL;
-        idx_ptr->next = NULL;
-        free(idx_ptr);
-        list_ptr->tail = idxPrev;
-        idxPrev->next = NULL;
-      }
-      else
-      {
-        list_node_t * idxPrev = idx_ptr->prev;
-        list_node_t * idxNext = idx_ptr->next;
-        idx_ptr->prev = NULL;
-        idx_ptr->next = NULL;
-        free(idx_ptr);
-        idxPrev->next = idxNext;
-        idxNext->prev = idxPrev;
+  // check to see if there is only one node
+    else if(list_ptr->current_list_size == 1)
+    {
+      idx_ptr = list_ptr->head;
+      su_data = idx_ptr->data_ptr;
+      idx_ptr->prev = NULL;
+      idx_ptr->next = NULL;
+      list_ptr->head = NULL;
+      list_ptr->tail = NULL;
+      free(idx_ptr);
+    }
+
+    else
+    {
+      if (idx_ptr == NULL) {idx_ptr = list_ptr->head;}
+      su_data = idx_ptr->data_ptr;
+      // check if this is the head or tail
+        if (list_ptr->head == idx_ptr)
+        {
+          list_node_t * idxNext = idx_ptr->next;
+          idx_ptr->prev = NULL;
+          idx_ptr->next = NULL;
+          free(idx_ptr);
+          list_ptr->head = idxNext;
+          idxNext->prev = NULL;
+        }
+        else if(list_ptr->tail == idx_ptr)
+        {
+          list_node_t * idxPrev = idx_ptr->prev;
+          idx_ptr->prev = NULL;
+          idx_ptr->next = NULL;
+          free(idx_ptr);
+          list_ptr->tail = idxPrev;
+          idxPrev->next = NULL;
+        }
+        else
+        {
+          list_node_t * idxPrev = idx_ptr->prev;
+          list_node_t * idxNext = idx_ptr->next;
+          idx_ptr->prev = NULL;
+          idx_ptr->next = NULL;
+          free(idx_ptr);
+          idxPrev->next = idxNext;
+          idxNext->prev = idxPrev;
+        }
+
       }
 
     list_ptr->current_list_size--;
     // END MY CODE
 
     // the last line should verify the list is valid after the remove
-  //  list_debug_validate(list_ptr);
-    return su_data;  // fix the return value
+    list_debug_validate(list_ptr);
+    return su_data;
 }
 
 /* Return a pointer to an element stored in the list, at the Iterator position

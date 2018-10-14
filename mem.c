@@ -23,19 +23,22 @@ void mem_validate(void);
 /* function to request 1 or more pages from the operating system.
  *
  * new_bytes must be the number of bytes that are being requested from
- *           the OS with the sbrk command.  It must be an integer 
+ *           the OS with the sbrk command.  It must be an integer
  *           multiple of the PAGESIZE
  *
  * returns a pointer to the new memory location.  If the request for
  * new memory fails this function simply returns NULL, and assumes some
  * calling function will handle the error condition.  Since the error
- * condition is catastrophic, nothing can be done but to terminate 
+ * condition is catastrophic, nothing can be done but to terminate
  * the program.
  */
-chunk_t *morecore(int new_bytes) 
+chunk_t *morecore(int new_bytes)
 {
     char *cp;
     chunk_t *new_p;
+    static int NumSbrkCalls;
+    static int NumPages;
+
     // preconditions
     assert(new_bytes % PAGESIZE == 0 && new_bytes > 0);
     assert(PAGESIZE % sizeof(chunk_t) == 0);
@@ -45,14 +48,16 @@ chunk_t *morecore(int new_bytes)
     new_p = (chunk_t *) cp;
     // You should add some code to count the number of calls
     // to sbrk, and the number of pages that have been requested
+    NumSbrkCalls++;
+    NumPages += new_bytes/PAGESIZE;
     // Ex: NumSbrkCalls++; NumPages += new_bytes/PAGESIZE;
     return new_p;
 }
 
 /* deallocates the space pointed to by return_ptr; it does nothing if
- * return_ptr is NULL.  
+ * return_ptr is NULL.
  *
- * This function assumes that the Rover pointer has already been 
+ * This function assumes that the Rover pointer has already been
  * initialized and points to some memory block in the free list.
  */
 void Mem_free(void *return_ptr)
@@ -70,7 +75,7 @@ void Mem_free(void *return_ptr)
  * This function assumes that there is a Rover pointer that points to
  * some item in the free list.  The first time the function is called,
  * Rover is null, and must be initialized with a dummy block whose size
- * is one, but set the size field to zero so this block can never be 
+ * is one, but set the size field to zero so this block can never be
  * removed from the list.  After the first call, the Rover can never be null
  * again.
  */
@@ -82,6 +87,7 @@ void *Mem_alloc(const int nbytes)
 
 
     // Insert your code here to find memory block
+
 
     // here are possible post-conditions, depending on your design
     //
@@ -114,15 +120,15 @@ void Mem_stats(void)
     // One of the stats you must collect is the total number
     // of pages that have been requested using sbrk.
     // Say, you call this NumPages.  You also must count M,
-    // the total number of bytes found in the free list 
+    // the total number of bytes found in the free list
     // (including all bytes used for headers).  If it is the case
     // that M == NumPages * PAGESiZE then print
     printf("all memory is in the heap -- no leaks are possible\n");
 }
 
-/* print table of memory in free list 
+/* print table of memory in free list
  *
- * The print should include the dummy item in the list 
+ * The print should include the dummy item in the list
  */
 void Mem_print(void)
 {
@@ -131,7 +137,7 @@ void Mem_print(void)
     chunk_t *start = p;
     do {
         // example format.  Modify for your design
-        printf("p=%p, size=%d, end=%p, next=%p %s\n", 
+        printf("p=%p, size=%d, end=%p, next=%p %s\n",
                 p, p->size, p + p->size, p->next, p->size!=0?"":"<-- dummy");
         p = p->next;
     } while (p != start);
@@ -194,4 +200,3 @@ void mem_validate(void)
     }
 }
 /* vi:set ts=8 sts=4 sw=4 et: */
-
