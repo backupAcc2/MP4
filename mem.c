@@ -1,6 +1,6 @@
 /* mem.c A template
- * My Name is
- * My User ID is
+ * My Name is Heath Gerrald
+ * My User ID is hgerral, C43308731
  * Lab4: Dynamic Memory Allocation
  * ECE 2230, Fall 2018
  */
@@ -164,14 +164,45 @@ void *Mem_alloc(const int nbytes)
  */
 void Mem_stats(void)
 {
-     printf("the student must implement mem stats\n");
+    //printf("the student must implement mem stats\n");
     // One of the stats you must collect is the total number
     // of pages that have been requested using sbrk.
     // Say, you call this NumPages.  You also must count M,
     // the total number of bytes found in the free list
     // (including all bytes used for headers).  If it is the case
     // that M == NumPages * PAGESiZE then print
-    printf("all memory is in the heap -- no leaks are possible\n");
+    // printf("all memory is in the heap -- no leaks are possible\n");
+    chunk_t *start_scan = Rover;
+    int M = 0; // total bytes found in free list
+    int numItems = 1, average = 0;
+    int max = Rover->size;
+    int min = PAGESIZE;
+
+    do {
+      if (Rover->size != 0)
+      {
+        M += Rover->size;
+        if (max < Rover->size) {max = Rover->size;}
+        if (Rover->size < min) {min = Rover->size;}
+        numItems++;
+      }
+      Rover = Rover->next;
+    } while(Rover != start_scan);
+
+    if (numItems == 1) { min = 0; }
+    average = M / (numItems-1);
+    M *= sizeof(chunk_t);
+
+    printf("Number of items in list (including Dummy): %d\n", numItems);
+    printf("Min chunk size: %d bytes\n", min);
+    printf("Max chunk size: %d bytes\n", max);
+    printf("Average chunk size: %d bytes\n", average);
+    printf("Total memory in free list: %d bytes\n", M);
+    printf("Number of calls to sbrk(): %d\n", NumSbrkCalls);
+    printf("Pages requested: %d\n", NumPages);
+    if (M == NumPages * PAGESIZE)
+      printf("all memory is in the heap -- no leaks are possible\n");
+
 }
 
 /* print table of memory in free list
