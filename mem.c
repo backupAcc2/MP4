@@ -15,6 +15,8 @@
 // Global variables required in mem.c only
 static chunk_t Dummy = {&Dummy, 0};
 static chunk_t * Rover = &Dummy;
+static int NumSbrkCalls;
+static int NumPages;
 
 
 // private function prototypes
@@ -36,8 +38,6 @@ chunk_t *morecore(int new_bytes)
 {
     char *cp;
     chunk_t *new_p;
-    static int NumSbrkCalls;
-    static int NumPages;
 
     // preconditions
     assert(new_bytes % PAGESIZE == 0 && new_bytes > 0);
@@ -65,8 +65,17 @@ void Mem_free(void *return_ptr)
     // precondition
     assert(Rover != NULL && Rover->next != NULL);
 
+    if (return_ptr != NULL)
+    {
+    // place the new block at Rover
+      chunk_t *p = (chunk_t*) return_ptr;
+      p--;
+      p->next = Rover->next;
+      Rover->next = p;
+    }
+
     // obviously the next line is WRONG!!!!  You must fix it.
-    free(return_ptr);
+    //free(return_ptr);
 }
 
 /* returns a pointer to space for an object of size nbytes, or NULL if the
@@ -85,9 +94,48 @@ void *Mem_alloc(const int nbytes)
     assert(nbytes > 0);
     assert(Rover != NULL && Rover->next != NULL);
 
+    if (Rover == NULL) {Rover = &Dummy;}
 
-    // Insert your code here to find memory block
+    chunk_t *Rover_prev = Rover;
+    chunk_t *search_start = Rover;
+    chunk_t *p, *q;
+    int nunits = nbytes / sizeof(chunk_t) + sizeof(chunk_t);
 
+  // Search the list for a block with enough memory
+  // Start search from Rover
+    do {
+      if (Rover->size >= nunits) // we found a block with enough space
+      {
+        p = Rover;
+        q = p + p->size - nunits;
+        q->next = NULL;
+        q->size = nunits;
+        p->size -= nunits;
+        return q + 1;
+      }
+
+       Rover_prev = Rover;
+       Rover = Rover->next;
+
+    } while(Rover != search_start);
+
+ // if here we could not find a memory block with enough space
+    int page_count = nunits / PAGESIZE;
+    if (nunits % PAGESIZE != 0) { page_count++; }
+    int new_bytes = PAGESIZE * page_count;
+   // we can only call morecore with multiples of PAGESIZE
+    chunk_t *memory = morecore(new_bytes);
+   // it doesn't matter where in the list we add our new bytes
+    Rover_prev->next = memory;
+    memory->next = Rover;
+    memory->size = new_bytes / sizeof(chunk_t);
+   // take out the requested bytes
+    p = memory;
+    q = p + p->size - nunits;
+    q->next = NULL;
+    q->size = nunits;
+    p->size -= nunits;
+    return q + 1;
 
     // here are possible post-conditions, depending on your design
     //
@@ -102,7 +150,7 @@ void *Mem_alloc(const int nbytes)
 
 
     // obviously the next line is WRONG!!!!  You must fix it.
-    return malloc(nbytes);
+    //  return malloc(nbytes);
 }
 
 /* prints stats about the current free list
@@ -116,7 +164,7 @@ void *Mem_alloc(const int nbytes)
  */
 void Mem_stats(void)
 {
-    printf("the student must implement mem stats\n");
+     printf("the student must implement mem stats\n");
     // One of the stats you must collect is the total number
     // of pages that have been requested using sbrk.
     // Say, you call this NumPages.  You also must count M,
