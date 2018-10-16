@@ -65,13 +65,44 @@ void Mem_free(void *return_ptr)
     // precondition
     assert(Rover != NULL && Rover->next != NULL);
 
-    if (return_ptr != NULL)
+    if (Coalescing == FALSE)
     {
-    // place the new block at Rover
+      if (return_ptr != NULL)
+      {
+      // place the new block at Rover
+        chunk_t *p = (chunk_t*) return_ptr;
+        p--;
+        p->next = Rover->next;
+        Rover->next = p;
+      }
+    }
+
+    else
+    {
       chunk_t *p = (chunk_t*) return_ptr;
+      chunk_t *q;
       p--;
-      p->next = Rover->next;
-      Rover->next = p;
+
+   // moves Rover to free block right before return_ptr
+      while (Rover->next > Rover) { Rover = Rover->next; }
+      while (Rover->next < p && Rover < Rover->next) { Rover = Rover->next; }
+
+      // q will be the memory beside return_ptr
+      q = p + p->size;
+      if (q + sizeof(chunk_t) == Rover->next) // there is a free block after return_ptr
+      {
+        p->size += q->size;
+        p->next = q->next;
+        q->next = NULL;
+      }
+      // at this point return_ptr and the block to its right are combined
+
+      q = Rover;
+      if (q + q->size == p)
+      {
+        q->size += p->size;
+        p->next = NULL;
+      }
     }
 
     // obviously the next line is WRONG!!!!  You must fix it.
@@ -94,30 +125,54 @@ void *Mem_alloc(const int nbytes)
     assert(nbytes > 0);
     assert(Rover != NULL && Rover->next != NULL);
 
-    if (Rover == NULL) {Rover = &Dummy;}
-
     chunk_t *Rover_prev = Rover;
     chunk_t *search_start = Rover;
     chunk_t *p, *q;
-    int nunits = nbytes / sizeof(chunk_t) + sizeof(chunk_t);
+    int nunits = nbytes / sizeof(chunk_t) + 1;
+    if (nbytes % sizeof(chunk_t) != 0) { nunits++; }
 
   // Search the list for a block with enough memory
   // Start search from Rover
-    do {
-      if (Rover->size >= nunits) // we found a block with enough space
-      {
-        p = Rover;
-        q = p + p->size - nunits;
-        q->next = NULL;
-        q->size = nunits;
-        p->size -= nunits;
-        return q + 1;
-      }
+    if (SearchPolicy == FIRST_FIT)
+    {
+      do {
+        if (Rover->size >= nunits) // we found a block with enough space
+        {
+          p = Rover;
+          q = p + p->size - nunits;
+          q->size = nunits;
+          if (Rover->size != nunits) {  q->next = NULL; }
+          p->size -= nunits;
+          return q + 1;
+        }
 
-       Rover_prev = Rover;
-       Rover = Rover->next;
+         Rover_prev = Rover;
+         Rover = Rover->next;
 
-    } while(Rover != search_start);
+      } while(Rover != search_start);
+    }
+
+    else
+    {
+       chunk_t *smallest_chunk = Rover;
+
+       do {
+         if (Rover->size >= nunits && Rover->size < smallest_chunk->size)
+             smallest_chunk = Rover;
+         Rover_prev = Rover;
+         Rover = Rover->next;
+       } while (Rover != search_start);
+
+       if (smallest_chunk->size >= nunits) // since it was initialized at Rover
+       {
+         p = smallest_chunk;
+         q = p + p->size - nunits;
+         q->size = nunits;
+         q->next = NULL;
+         p->size -= nunits;
+         return q + 1;
+       }
+    }
 
  // if here we could not find a memory block with enough space
     int page_count = nunits / PAGESIZE;
