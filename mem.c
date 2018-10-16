@@ -77,7 +77,7 @@ void Mem_free(void *return_ptr)
       }
     }
 
-    else
+    else if (return_ptr != NULL)
     {
       chunk_t *p = (chunk_t*) return_ptr;
       chunk_t *q;
@@ -141,8 +141,16 @@ void *Mem_alloc(const int nbytes)
           p = Rover;
           q = p + p->size - nunits;
           q->size = nunits;
-          if (Rover->size != nunits) {  q->next = NULL; }
+          if (Rover->size == nunits)
+          {
+             Rover = Rover->next;
+             Rover->next = Rover;
+          }
+          q->next = NULL;
           p->size -= nunits;
+          // p == q if we used all the space in this page, in this case subtracting
+          // the size from p also subtracts from q. We need q to keep its size
+          if (p == q) { q->size += nunits; }
           return q + 1;
         }
 
@@ -168,8 +176,16 @@ void *Mem_alloc(const int nbytes)
          p = smallest_chunk;
          q = p + p->size - nunits;
          q->size = nunits;
+         if (smallest_chunk->size == nunits)
+         {
+            Rover = Rover->next;
+            Rover->next = Rover;
+         }
          q->next = NULL;
          p->size -= nunits;
+         // p == q if we used all the space in this page, in this case subtracting
+         // the size from p also subtracts from q. We need q to keep its size
+         if (p == q) { q->size += nunits; }
          return q + 1;
        }
     }
@@ -187,9 +203,17 @@ void *Mem_alloc(const int nbytes)
    // take out the requested bytes
     p = memory;
     q = p + p->size - nunits;
-    q->next = NULL;
     q->size = nunits;
+    if (memory->size == nunits)
+    {
+       Rover = Rover->next;
+       Rover->next = Rover;
+    }
+    q->next = NULL;
     p->size -= nunits;
+    // p == q if we used all the space in this page, in this case subtracting
+    // the size from p also subtracts from q. We need q to keep its size
+    if (p == q) { q->size += nunits; }
     return q + 1;
 
     // here are possible post-conditions, depending on your design
