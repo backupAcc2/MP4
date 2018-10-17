@@ -126,6 +126,9 @@ void *Mem_alloc(const int nbytes)
     assert(Rover != NULL && Rover->next != NULL);
 
     chunk_t *p, *q;
+    chunk_t *smallest_chunk = NULL;
+    chunk_t *smallest_prev = NULL;
+    int smallest_num = 0;
     chunk_t *search_start = Rover;
     chunk_t *Rover_prev = Rover;
 
@@ -155,10 +158,27 @@ void *Mem_alloc(const int nbytes)
       } while(Rover != search_start && found_space == 0);
     }
 
-// else if SearchPolicy == BEST_FIT
+    else if (SearchPolicy == BEST_FIT){
+      smallest_num = PAGESIZE / sizeof(chunk_t) + 1; // this is higher than all chunks can be
+    do {
+        if (Rover->size < smallest_num && Rover->size > 0 && Rover->size >= nunits){
+           smallest_chunk = Rover;
+           smallest_num = Rover->size;
+           smallest_prev = Rover_prev;
+         }
+        else {
+          Rover_prev = Rover;
+          Rover = Rover->next;
+        }
+      } while (Rover != search_start);
+    }
 
-    if (found_space == 1) { p = Rover; }
-
+    if (found_space == 1 && SearchPolicy == FIRST_FIT) { p = Rover; }
+    else if (smallest_chunk && SearchPolicy == BEST_FIT) {
+      p = smallest_chunk;
+      Rover = smallest_chunk;
+      Rover_prev = smallest_prev;
+    }
     else
     {
       p = morecore(new_bytes);
