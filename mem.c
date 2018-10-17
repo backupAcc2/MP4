@@ -125,94 +125,58 @@ void *Mem_alloc(const int nbytes)
     assert(nbytes > 0);
     assert(Rover != NULL && Rover->next != NULL);
 
-    chunk_t *Rover_prev = Rover;
-    chunk_t *search_start = Rover;
     chunk_t *p, *q;
+    chunk_t *search_start = Rover;
+    chunk_t *Rover_prev = Rover;
+
+ // find our previous Rover pointer
+    Rover = Rover->next;
+    while (Rover != search_start) {
+      Rover_prev = Rover_prev->next;
+      Rover = Rover->next;
+    }
+ // Rover should equal its original position
+
+    int found_space = 0;
     int nunits = nbytes / sizeof(chunk_t) + 1;
     if (nbytes % sizeof(chunk_t) != 0) { nunits++; }
+
+    int page_count = nunits / PAGESIZE;
+    if (nunits % PAGESIZE != 0) { page_count++; }
+    int new_bytes = PAGESIZE * page_count;
 
   // Search the list for a block with enough memory
   // Start search from Rover
     if (SearchPolicy == FIRST_FIT)
     {
       do {
-        if (Rover->size >= nunits) // we found a block with enough space
-        {
-          p = Rover;
-          q = p + p->size - nunits;
-          q->size = nunits;
-          if (Rover->size == nunits)
-          {
-             Rover = Rover->next;
-             Rover->next = Rover;
-          }
-          q->next = NULL;
-          p->size -= nunits;
-          // p == q if we used all the space in this page, in this case subtracting
-          // the size from p also subtracts from q. We need q to keep its size
-          if (p == q) { q->size += nunits; }
-          return q + 1;
-        }
-
-         Rover_prev = Rover;
-         Rover = Rover->next;
-
-      } while(Rover != search_start);
+        if (Rover->size >= nunits) { found_space = 1; }
+        else { Rover_prev = Rover; Rover = Rover->next; }
+      } while(Rover != search_start && found_space == 0);
     }
+
+// else if SearchPolicy == BEST_FIT
+
+    if (found_space == 1) { p = Rover; }
 
     else
     {
-       chunk_t *smallest_chunk = Rover;
-
-       do {
-         if (Rover->size >= nunits && Rover->size < smallest_chunk->size)
-             smallest_chunk = Rover;
-         Rover_prev = Rover;
-         Rover = Rover->next;
-       } while (Rover != search_start);
-
-       if (smallest_chunk->size >= nunits) // since it was initialized at Rover
-       {
-         p = smallest_chunk;
-         q = p + p->size - nunits;
-         q->size = nunits;
-         if (smallest_chunk->size == nunits)
-         {
-            Rover = Rover->next;
-            Rover->next = Rover;
-         }
-         q->next = NULL;
-         p->size -= nunits;
-         // p == q if we used all the space in this page, in this case subtracting
-         // the size from p also subtracts from q. We need q to keep its size
-         if (p == q) { q->size += nunits; }
-         return q + 1;
-       }
+      p = morecore(new_bytes);
+      p->next = Rover->next;
+      Rover->next = p;
+      p->size = new_bytes / sizeof(chunk_t);
     }
 
- // if here we could not find a memory block with enough space
-    int page_count = nunits / PAGESIZE;
-    if (nunits % PAGESIZE != 0) { page_count++; }
-    int new_bytes = PAGESIZE * page_count;
-   // we can only call morecore with multiples of PAGESIZE
-    chunk_t *memory = morecore(new_bytes);
-   // it doesn't matter where in the list we add our new bytes
-    Rover_prev->next = memory;
-    memory->next = Rover;
-    memory->size = new_bytes / sizeof(chunk_t);
-   // take out the requested bytes
-    p = memory;
     q = p + p->size - nunits;
     q->size = nunits;
-    if (memory->size == nunits)
-    {
-       Rover = Rover->next;
-       Rover->next = Rover;
+    if (p->size == nunits) { // this is the last memory on this page
+        Rover_prev->next = Rover->next;
+        Rover = Rover_prev->next; // Rover must point to next block in list when allocating
     }
     q->next = NULL;
     p->size -= nunits;
-    // p == q if we used all the space in this page, in this case subtracting
-    // the size from p also subtracts from q. We need q to keep its size
+  // p == q if we used all the space in this page, in this case subtracting
+  // the size from p also subtracts from q. We need q to keep its size
     if (p == q) { q->size += nunits; }
     return q + 1;
 
