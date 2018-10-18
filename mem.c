@@ -65,44 +65,56 @@ void Mem_free(void *return_ptr)
     // precondition
     assert(Rover != NULL && Rover->next != NULL);
 
-    if (Coalescing == FALSE)
+    if (Coalescing == FALSE && return_ptr != NULL)
     {
-      if (return_ptr != NULL)
+     // place the new block at Rover
+      chunk_t *p = (chunk_t*) return_ptr;
+      p--;
+      p->next = Rover->next;
+      Rover->next = p;
+    }
+
+    else if (Coalescing == TRUE && return_ptr != NULL)
+    {
+      chunk_t *p = (chunk_t*) return_ptr;
+      chunk_t *q, *highest_address;
+      p--;
+      int was_combined = 0;
+
+     // get Rover right in front of p
+      while (Rover < Rover->next) {Rover = Rover->next; } // gets to end of free list
+      highest_address = Rover;
+      Rover = Rover->next;
+     // Rover should now point to lowest block
+
+      while (Rover->next < p && Rover < highest_address) {Rover = Rover->next; }
+    // Rover now points to right before p
+
+     // check to see if p can be combined with block to its right
+      if (p + p->size == Rover->next)
       {
-      // place the new block at Rover
-        chunk_t *p = (chunk_t*) return_ptr;
-        p--;
+        q = Rover->next;
+        p->next = q->next;
+        q->next = NULL;
+        p->size += q->size;
+        Rover->next = p;
+        was_combined = 1;
+      }
+     // check to see if p can be combined with the block to its left
+      if (Rover + Rover->size == p)
+      {
+        Rover->size += p->size;
+        if (p->next != NULL) { Rover->next = p->next; }
+        p->next = NULL;
+        was_combined = 1;
+      }
+
+      if (was_combined == 0)
+      {
         p->next = Rover->next;
         Rover->next = p;
       }
-    }
 
-    else if (return_ptr != NULL)
-    {
-      chunk_t *p = (chunk_t*) return_ptr;
-      chunk_t *q;
-      p--;
-
-   // moves Rover to free block right before return_ptr
-      while (Rover->next > Rover) { Rover = Rover->next; }
-      while (Rover->next < p && Rover < Rover->next) { Rover = Rover->next; }
-
-      // q will be the memory beside return_ptr
-      q = p + p->size;
-      if (q + sizeof(chunk_t) == Rover->next) // there is a free block after return_ptr
-      {
-        p->size += q->size;
-        p->next = q->next;
-        q->next = NULL;
-      }
-      // at this point return_ptr and the block to its right are combined
-
-      q = Rover;
-      if (q + q->size == p)
-      {
-        q->size += p->size;
-        p->next = NULL;
-      }
     }
 
     // obviously the next line is WRONG!!!!  You must fix it.
